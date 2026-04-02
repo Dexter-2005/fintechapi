@@ -1,0 +1,43 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// SQLite does not support native enums.
+// Roles/Status/Type are stored as strings and validated in application logic via Zod.
+
+model User {
+  id        String    @id @default(uuid())
+  name      String
+  email     String    @unique
+  // role: "VIEWER" | "ANALYST" | "ADMIN"
+  role      String    @default("VIEWER")
+  // status: "ACTIVE" | "INACTIVE"
+  status    String    @default("ACTIVE")
+  password  String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  records   FinancialRecord[]
+}
+
+model FinancialRecord {
+  id        String   @id @default(uuid())
+  amount    Float
+  // type: "INCOME" | "EXPENSE"
+  type      String
+  category  String
+  date      DateTime
+  notes     String?
+  isDeleted Boolean  @default(false)
+  createdBy String
+  user      User     @relation(fields: [createdBy], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
