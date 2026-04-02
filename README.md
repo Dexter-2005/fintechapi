@@ -1,232 +1,106 @@
 # Finance Data Processing & Access Control Backend
 
-A production-ready REST API for a Finance Dashboard system featuring role-based access control, financial record management, and aggregated analytics.
+[![Live Demo](https://img.shields.io/badge/Live-Demo-brightgreen)](https://fintechapi-production.up.railway.app/health)
+[![API Docs](https://img.shields.io/badge/API-Docs-blue)](https://fintechapi-production.up.railway.app/api/docs)
+
+A production-ready REST API for a Finance Dashboard system featuring role-based access control (RBAC), financial record management, and aggregated analytics.
 
 ---
 
-## Tech Stack
+## 🚀 Live Links
+- **API Health Check:** [https://fintechapi-production.up.railway.app/health](https://fintechapi-production.up.railway.app/health)
+- **Interactive Swagger Docs:** [https://fintechapi-production.up.railway.app/api/docs](https://fintechapi-production.up.railway.app/api/docs)
 
-| Layer | Technology | Why |
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technology | Rationale |
 |---|---|---|
-| Language | TypeScript + Node.js | Type safety, industry standard |
-| Framework | Express.js | Lightweight, clean middleware model |
-| Database (local) | SQLite via Prisma | Zero setup, fully relational |
-| Database (prod) | PostgreSQL | Scalable, Railway free tier |
-| Auth | JWT (stateless) | No external service required |
-| Validation | Zod | Schema-first, great error messages |
-| Docs | Swagger UI | Interactive, auto-generated from JSDoc |
-| Testing | Jest + Supertest | Integration-level coverage |
+| **Language** | TypeScript + Node.js | Provides robust type safety and industry-standard performance. |
+| **Framework** | Express.js | Lightweight and flexible middleware model for clean RBAC implementation. |
+| **Database** | PostgreSQL (Production) / SQLite (Local) | Reliable relational storage managed via Prisma ORM. |
+| **ORM** | Prisma | Type-safe database queries and automated schema migrations. |
+| **Auth** | JWT (JSON Web Tokens) | Stateless authentication with role-based payload. |
+| **Validation** | Zod | Schema-first validation for all API inputs and environment variables. |
+| **Docs** | Swagger (OpenAPI 3.0) | Auto-generated interactive documentation for easy testing. |
+| **Testing** | Jest + Supertest | Full integration testing suite with 30+ passing tests. |
 
 ---
 
-## Getting Started
+## ⚙️ How it Works (Project Architecture)
 
-### Prerequisites
+The application follows a modular architecture organized by feature sets:
 
-- Node.js ≥ 18
-- npm ≥ 8
+1.  **Middleware Layer:**
+    *   `auth.ts`: Verifies JWT tokens and attaches user details to requests.
+    *   `rbac.ts`: A higher-order function that restricts access based on user roles (`ADMIN`, `ANALYST`, `VIEWER`).
+    *   `validate.ts`: Intercepts requests and validates the `req.body` against Zod schemas before reaching controllers.
+    *   `errorHandler.ts`: A centralized error handler that catches all exceptions (including Prisma database errors) and returns consistent JSON responses.
 
-### Installation
+2.  **Module Layer (Auth, Users, Records, Dashboard):**
+    *   Each module contains its own **Routes**, **Controller**, and **Schema**.
+    *   **Controllers** handle the business logic, interacting with the database through the Prisma singleton.
+    *   **Schemas** define the data requirements for creates/updates.
 
-```bash
-# Clone the repo
-git clone <your-repo-url>
-cd backendassignment
-
-# Install dependencies
-npm install
-
-# Copy environment variables
-cp .env.example .env
-```
-
-### Environment Variables
-
-| Variable | Description | Default |
-|---|---|---|
-| `PORT` | Server port | `3000` |
-| `DATABASE_URL` | Prisma DB connection string | `file:./dev.db` (SQLite) |
-| `JWT_SECRET` | Secret key for JWT signing | *(must be set)* |
-| `JWT_EXPIRES_IN` | JWT expiration duration | `7d` |
-
-For local development, the default SQLite URL requires no setup.
-For production (Railway), set `DATABASE_URL` to your PostgreSQL URL and change `prisma/schema.prisma` provider to `"postgresql"`.
-
-### Database Setup
-
-```bash
-# Push schema to local SQLite (dev)
-npm run db:push
-
-# Or run migrations
-npm run db:migrate
-```
-
-### Run the Server
-
-```bash
-# Development (hot reload)
-npm run dev
-
-# Production
-npm run build
-npm start
-```
-
-The API will be available at `http://localhost:3000`.
-Swagger UI docs at `http://localhost:3000/api/docs`.
+3.  **Data Layer:**
+    *   Uses **Prisma** as the abstraction layer. 
+    *   Implements **Soft Deletes** for financial records—data is never permanently removed, ensuring audit trails are preserved.
 
 ---
 
-## Role Model
+## 🔑 Role Model & Permissions
 
 | Role | Permissions |
 |---|---|
-| `VIEWER` | View own profile, read all financial records |
-| `ANALYST` | Everything VIEWER can do + access all dashboard analytics |
-| `ADMIN` | Full access: user management, create/update/delete records |
-
-> **Assumption**: All roles can call `GET /api/records` and `GET /api/records/:id`. Dashboard analytics (`/api/dashboard/*`) requires ANALYST or ADMIN. All write operations on records require ADMIN.
+| **VIEWER** | Can view their own profile and read all financial records. Cannot see analytics or edit data. |
+| **ANALYST** | Includes all VIEWER permissions + access to all Dashboard Analytics (Summary, Trends, Categories). |
+| **ADMIN** | Full access: User management (role/status updates), full CRUD on financial records, and analytics. |
 
 ---
 
-## API Overview
+## 🛠️ Getting Started Locally
 
-### Authentication
-> Public endpoints
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/api/auth/register` | Register a user (role defaults to VIEWER) |
-| POST | `/api/auth/login` | Login — returns JWT token |
-
-### User Management
-> Requires: `ADMIN` role
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/users` | List all users |
-| GET | `/api/users/:id` | Get user by ID |
-| PATCH | `/api/users/:id/role` | Update user role |
-| PATCH | `/api/users/:id/status` | Activate/deactivate user |
-| DELETE | `/api/users/:id` | Delete user |
-
-### Financial Records
-> Read: all authenticated users | Write: ADMIN only
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/api/records` | Create a financial record |
-| GET | `/api/records` | List records (filters + pagination) |
-| GET | `/api/records/:id` | Get single record |
-| PATCH | `/api/records/:id` | Update a record |
-| DELETE | `/api/records/:id` | Soft delete a record |
-
-**GET /api/records query params:**
-- `type=INCOME\|EXPENSE`
-- `category=...`
-- `startDate=2024-01-01&endDate=2024-12-31`
-- `page=1&limit=10`
-
-### Dashboard Analytics
-> Requires: `ANALYST` or `ADMIN` role
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/dashboard/summary` | Total income, expenses, net balance |
-| GET | `/api/dashboard/by-category` | Category-level breakdown |
-| GET | `/api/dashboard/trends` | Monthly totals (last 12 months) |
-| GET | `/api/dashboard/recent` | Last 10 transactions |
-
----
-
-## Sample Requests & Responses
-
-### Register
+### 1. Installation
 ```bash
-POST /api/auth/register
-{
-  "name": "Alice",
-  "email": "alice@example.com",
-  "password": "securepassword",
-  "role": "ADMIN"
-}
+git clone https://github.com/Dexter-2005/fintechapi.git
+cd fintechapi
+npm install
 ```
 
-**Response 201:**
-```json
-{
-  "success": true,
-  "statusCode": 201,
-  "message": "User registered successfully.",
-  "data": {
-    "user": { "id": "...", "name": "Alice", "email": "alice@example.com", "role": "ADMIN" },
-    "token": "eyJhbGciOiJIUzI1NiIs..."
-  }
-}
+### 2. Environment Setup
+Create a `.env` file in the root:
+```env
+PORT=3000
+DATABASE_URL="file:./dev.db"
+JWT_SECRET="your_secret_here"
+JWT_EXPIRES_IN="7d"
 ```
 
-### Create Record (ADMIN)
+### 3. Database & Run
 ```bash
-POST /api/records
-Authorization: Bearer <token>
-{
-  "amount": 5000,
-  "type": "INCOME",
-  "category": "Salary",
-  "date": "2024-01-15T00:00:00.000Z",
-  "notes": "January salary"
-}
-```
-
-### Dashboard Summary (ANALYST+)
-```bash
-GET /api/dashboard/summary
-Authorization: Bearer <token>
-```
-
-**Response 200:**
-```json
-{
-  "success": true,
-  "data": {
-    "totalIncome": 50000.00,
-    "totalExpenses": 18500.00,
-    "netBalance": 31500.00,
-    "totalTransactions": 23
-  }
-}
+npx prisma db push
+npm run dev
 ```
 
 ---
 
-## Running Tests
-
+## 🧪 Testing
+The project includes a robust testing suite. To run tests:
 ```bash
-# Run all tests
 npm test
-
-# With coverage
-npm run test:coverage
 ```
-
-Tests use a separate `test.db` database with a clean schema reset before each suite. Test files are in `/tests/`.
-
----
-
-## Deployment (Railway)
-
-1. Push to GitHub
-2. Create a new Railway project → connect your repo
-3. Add **PostgreSQL** plugin to the project
-4. Set environment variables:
-   - `JWT_SECRET` (generate a strong secret)
-   - `DATABASE_URL` is auto-injected by Railway
-5. Change `prisma/schema.prisma` `provider` from `"sqlite"` to `"postgresql"`
-6. Set start command: `npx prisma migrate deploy && npm start`
+*Tests use an isolated `test.db` and automatically reset the database state before each suite.*
 
 ---
 
-## Design Decisions
+## 📝 Design Decisions & Trade-offs
+- **Soft Deletes:** Chose to use an `isDeleted` flag for financial records to prevent accidental data loss and support potential "Undo" features.
+- **Stateless Auth:** Used JWT for scalability. While this makes individual token revocation harder, the middleware specifically checks the user's `status` (ACTIVE/INACTIVE) in the DB on every request to mitigate this.
+- **Zod over Joi/Class-Validator:** Selected Zod for its superior TypeScript integration and ability to infer types directly from schemas.
 
-- **Soft delete on records**: `isDeleted: true` flag — records are never hard-deleted to preserve audit trails
-- **Self-protection**: Admins cannot delete/deactivate/change role on their own account
-- **Consistent response envelope**: Every response uses `{ success, statusCode, message, data }` 
-- **Centralized error handling**: All errors propagate to the global `errorHandler` — no bare try/catch responses
-- **No password in responses**: Explicitly excluded from all user select statements
+---
+
+## 📞 Contact
+**Himanshu Chaudhary**  
+📧 [pchimanshu02@gmail.com](mailto:pchimanshu02@gmail.com)
